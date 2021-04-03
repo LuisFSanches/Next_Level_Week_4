@@ -1,9 +1,13 @@
 import express from 'express'
 const routes = express.Router()
+import {UserController} from './controllers/UserController'
 
-routes.get('/', (req,res)=>{
-  return res.json({message: 'Hello World'})
-})
+const userController = new UserController()
+
+
+
+routes.post('/new-user', userController.create)
+
 
 
 
