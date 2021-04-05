@@ -5,6 +5,7 @@ import { SurveysUsersRepository } from '../repositories/SurveysUsersRepository'
 import { UsersRepository } from '../repositories/UsersRepository'
 import SendMailService from '../services/SendMailService'
 import {resolve} from 'path';
+import { AppError } from '../errors/AppError'
 class SendMailController{
 
   async execute(req:Request,res:Response){
@@ -18,36 +19,38 @@ class SendMailController{
     const checkUser = await usersRepository.findOne({email})
 
     if(!checkUser){
-      return res.status(400).json({error:"User not found"})
+      throw new AppError("User not found")
+
     }
 
     const checkSurvey = await surveysRepository.findOne({id:survey_id})
 
     if(!checkSurvey){
-      return response.status(400).json({
-        error: "Survey does not exists"
-      })
+      throw new AppError("Survey does not exists")
+   
     }
 
-    const variables = {
-      name:checkUser.name,
-      title:checkSurvey.title,
-      description: checkSurvey.description,
-      user_id:checkUser.id,
-      link:process.env.URL_MAIL
-    }
+  
 
     const npsPath = resolve(__dirname, "..", "views", "emails","npsMail.hbs");
 
 
     //Check if the survery has already been created for specific user
     const checkSurveyUser = await surveysUsersRepository.findOne({
-      where:[{user_id:checkUser.id}, {value:null}],
+      where:[{user_id:checkUser.id, value:null}],
       relations:["user","survey"]
     })
 
+    const variables = {
+      name:checkUser.name,
+      title:checkSurvey.title,
+      description: checkSurvey.description,
+      id:'',
+      link:process.env.URL_MAIL
+    }
 
     if(checkSurveyUser){
+      variables.id = checkSurveyUser.id
       await SendMailService.execute(email, checkSurvey.title, variables, npsPath )
       return res.json(checkSurveyUser)
     }
@@ -59,10 +62,8 @@ class SendMailController{
     })
     await surveysUsersRepository.save(surveyUser)
 
-
- 
-
     //Send e-mail to user
+    variables.id = surveyUser.id;
     await SendMailService.execute(email, checkSurvey.title, variables, npsPath)
     return res.json(surveyUser)
 
